@@ -1,0 +1,16 @@
+{
+   "page":"A",
+   "coord":[10,10,250,100],
+   "reason":"Approval",
+   "location":"New York",
+   "customText":"Approved by John Doe",
+   "greenTick":true,
+   "changesAllowed":false,
+   "enableLtv":true,
+   "timestamp":{
+      "enabled":true,
+      "url":"",
+      "username":"",
+      "password":""
+   }
+}

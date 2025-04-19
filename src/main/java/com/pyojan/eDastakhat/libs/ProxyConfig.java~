@@ -1,0 +1,135 @@
+package com.pyojan.eDastakhat.libs;
+
+import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+import net.sf.oval.constraint.NotNull;
+
+import java.net.Authenticator;
+import java.net.PasswordAuthentication;
+
+/**
+ * Represents a proxy configuration with options for HTTP or HTTPS proxying,
+ * including optional authentication.
+ * <p>
+ * This class allows setting proxy host, port, credentials (username/password),
+ * and a flag to indicate if the proxy is HTTPS. The configuration is applied
+ * globally via system properties and the {@link Authenticator} API.
+ * </p>
+ *
+ * Example usage:
+ * <pre>{@code
+ * ProxyConfig proxyConfig = new ProxyConfig();
+ * proxyConfig.setProxy("proxy.example.com", 8080, "user", "pass", true);
+ * }</pre>
+ *
+ * @author [Your Name]
+ */
+@NoArgsConstructor
+@Setter
+public class ProxyConfig {
+
+    /**
+     * The proxy server hostname or IP address.
+     */
+    @NotNull
+    private String proxyHost;
+
+    /**
+     * The proxy server port number.
+     */
+    @NotNull
+    private int proxyPort;
+
+    /**
+     * The username for proxy authentication (optional).
+     */
+    private String proxyUser;
+
+    /**
+     * The password for proxy authentication (optional).
+     */
+    private String proxyPassword;
+
+    /**
+     * Flag indicating whether to use HTTPS proxy (true) or HTTP proxy (false).
+     * Default is false (HTTP).
+     */
+    private boolean isHttps = false;
+
+    /**
+     * Applies the proxy settings using the current object's field values.
+     * Internally calls {@link #setProxy(String, int, String, String, boolean)}.
+     */
+    public void setProxy() {
+        setProxy(this.proxyHost, this.proxyPort, this.proxyUser, this.proxyPassword, this.isHttps);
+    }
+
+    /**
+     * Applies proxy settings with only host and port. Uses HTTP by default and no authentication.
+     *
+     * @param proxyHost the proxy host (e.g., "proxy.example.com")
+     * @param proxyPort the proxy port (e.g., 8080)
+     */
+    public void setProxy(String proxyHost, int proxyPort) {
+        setProxy(proxyHost, proxyPort, null, null, false);
+    }
+
+    /**
+     * Applies proxy settings with host, port, username, and password using HTTP.
+     *
+     * @param proxyHost     the proxy host
+     * @param proxyPort     the proxy port
+     * @param proxyUser     the proxy username (optional)
+     * @param proxyPassword the proxy password (optional)
+     */
+    public void setProxy(String proxyHost, int proxyPort, String proxyUser, String proxyPassword) {
+        setProxy(proxyHost, proxyPort, proxyUser, proxyPassword, false);
+    }
+
+    /**
+     * Applies proxy settings with host, port, and HTTPS flag. No authentication.
+     *
+     * @param proxyHost the proxy host
+     * @param proxyPort the proxy port
+     * @param isHttps   true to use HTTPS proxy, false for HTTP
+     */
+    public void setProxy(String proxyHost, int proxyPort, boolean isHttps) {
+        setProxy(proxyHost, proxyPort, null, null, isHttps);
+    }
+
+    /**
+     * Applies full proxy configuration with host, port, authentication, and HTTPS flag.
+     * Sets relevant system properties and installs a default {@link Authenticator}
+     * if username and password are provided.
+     *
+     * @param proxyHost     the proxy host
+     * @param proxyPort     the proxy port
+     * @param proxyUser     the proxy username (optional)
+     * @param proxyPassword the proxy password (optional)
+     * @param isHttps       true for HTTPS proxy, false for HTTP
+     */
+    public void setProxy(String proxyHost, int proxyPort, String proxyUser, String proxyPassword, boolean isHttps) {
+        if (isHttps) {
+            System.setProperty("https.proxyHost", proxyHost);
+            System.setProperty("https.proxyPort", String.valueOf(proxyPort));
+            if (proxyUser != null) System.setProperty("https.proxyUser", proxyUser);
+            if (proxyPassword != null) System.setProperty("https.proxyPassword", proxyPassword);
+        } else {
+            System.setProperty("http.proxyHost", proxyHost);
+            System.setProperty("http.proxyPort", String.valueOf(proxyPort));
+            if (proxyUser != null) System.setProperty("http.proxyUser", proxyUser);
+            if (proxyPassword != null) System.setProperty("http.proxyPassword", proxyPassword);
+        }
+
+        // Set proxy authentication for Java networking APIs
+        if (proxyUser != null && proxyPassword != null) {
+            Authenticator.setDefault(new Authenticator() {
+                @Override
+                protected PasswordAuthentication getPasswordAuthentication() {
+                    return new PasswordAuthentication(proxyUser, proxyPassword.toCharArray());
+                }
+            });
+        }
+    }
+}
