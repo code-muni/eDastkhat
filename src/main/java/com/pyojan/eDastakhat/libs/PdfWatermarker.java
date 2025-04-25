@@ -3,12 +3,13 @@ package com.pyojan.eDastakhat.libs;
 import com.itextpdf.text.pdf.*;
 import com.itextpdf.text.Rectangle;
 import com.itextpdf.text.DocumentException;
+import com.pyojan.eDastakhat.services.Signer;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
-public class PdfWatermarker {
+public class PdfWaterMarker {
 
     private static final int FONT_SIZE = 8;
 
@@ -22,7 +23,7 @@ public class PdfWatermarker {
     }
 
     public static ByteArrayInputStream applyWatermarkToAllPages(String pdfFilePath, String watermarkText, int[] coord) throws IOException, DocumentException {
-        try (InputStream inputStream = new FileInputStream(pdfFilePath)) {
+        try (InputStream inputStream = Files.newInputStream(Paths.get(pdfFilePath))) {
             PdfReader reader = new PdfReader(inputStream);
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             PdfStamper stamper = new PdfStamper(reader, outputStream);
@@ -35,6 +36,25 @@ public class PdfWatermarker {
             stamper.close();
             reader.close();
 
+            return new ByteArrayInputStream(outputStream.toByteArray());
+        }
+    }
+
+    public static ByteArrayInputStream applyWatermarkToSelectedPages(String pdfFilePath, String watermarkText, int[] coord, String pagesInfo) throws IOException, DocumentException {
+        try (InputStream inputStream = Files.newInputStream(Paths.get(pdfFilePath))) {
+            PdfReader reader = new PdfReader(inputStream);
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            PdfStamper stamper = new PdfStamper(reader, outputStream);
+
+            int[] selectedPages = Signer.parsePageSpecification(pagesInfo, reader.getNumberOfPages());
+            for (int page : selectedPages) {
+                if (page < 1 || page > reader.getNumberOfPages()) {
+                    throw new IllegalArgumentException("Invalid page number: " + page);
+                }
+                addWatermark(stamper, reader, page, coord, watermarkText);
+            }
+            stamper.close();
+            reader.close();
             return new ByteArrayInputStream(outputStream.toByteArray());
         }
     }

@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Random;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Utils {
 
@@ -16,13 +18,22 @@ public class Utils {
             "http://timestamp.digicert.com"
     };
 
+    /**
+     * Gets a random Time Stamp Authority (TSA) URL from the predefined list
+     * @return A randomly selected TSA URL string
+     */
     public static String getRandomTsaUrl() {
         Random random = new Random();
         int index = random.nextInt(tsaUrls.length);
         return tsaUrls[index];
     }
 
-
+    /**
+     * Validates if the provided TSA URL is reachable and operational
+     * @param tsaUrl The Time Stamp Authority URL to validate
+     * @throws TsaException If the URL is not reachable or invalid
+     * @throws IllegalArgumentException If the URL is null or empty
+     */
     public static void validateTsaUrlUpdated(String tsaUrl) throws TsaException {
         if (tsaUrl == null || tsaUrl.trim().isEmpty()) {
             throw new IllegalArgumentException("TSA URL cannot be null or empty.");
@@ -52,7 +63,13 @@ public class Utils {
         return (responseCode >= 200 && responseCode < 400);
     }
 
-
+    /**
+     * Gets the signature page number based on the input string and total pages
+     * @param page The page specification ("F" for first, "L" for last, or a number)
+     * @param totalPages The total number of pages in the document
+     * @return The page number where signature should be placed
+     * @throws IllegalArgumentException If page number is invalid or out of range
+     */
     public static int getSignaturePageNumber(String page, int totalPages) {
         if ("L".equalsIgnoreCase(page)) return totalPages;
         if ("F".equalsIgnoreCase(page)) return 1;
@@ -69,6 +86,9 @@ public class Utils {
         }
     }
 
+    /**
+     * Prints concise help information about the application usage and options
+     */
     public static void printConciseHelp() {
         String helpText =
                 "eDastakhat - PDF Digital Signing Tool\n" +
@@ -127,6 +147,4 @@ public class Utils {
 
         System.out.println(helpText);
     }
-
-
 }

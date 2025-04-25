@@ -4,13 +4,18 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import net.sf.oval.constraint.*;
+
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class SignatureOptions {
 
     @NotEmpty(message = "page cannot be empty")
-    @MatchPattern(pattern = "(?!0)(?i)(f|l|a|\\d+)", message = "Invalid page value. Valid values are: F, L, A, <number>")
+    @MatchPattern(
+            pattern = "^(?i)(a|f|l|[1-9]\\d*)(?:-(?i)(a|f|l|[1-9]\\d*))?(?:,(?i)(a|f|l|[1-9]\\d*)(?:-(?i)(a|f|l|[1-9]\\d*))?)*$",
+            message = "Invalid page format. Examples: '1', 'F', 'L', 'A', '1-5', '1,3,5', 'F,L,2-4'"
+    )
     private String page = "L";
 
     @Size(min = 0, max = 4, message = "coord must have between 0 and 4 elements")

@@ -7,7 +7,7 @@ import com.itextpdf.text.pdf.security.TSAClientBouncyCastle;
 import com.pyojan.eDastakhat.exceptions.SignerException;
 import com.pyojan.eDastakhat.exceptions.TsaException;
 import com.pyojan.eDastakhat.exceptions.UserCancelledException;
-import com.pyojan.eDastakhat.libs.PdfWatermarker;
+import com.pyojan.eDastakhat.libs.PdfWaterMarker;
 import com.pyojan.eDastakhat.libs.Response;
 import com.pyojan.eDastakhat.libs.keyStore.PKCS11KeyStore;
 import com.pyojan.eDastakhat.libs.keyStore.PKCS12KeyStore;
@@ -23,13 +23,12 @@ import net.sf.oval.constraint.NotNull;
 import org.apache.commons.cli.CommandLine;
 
 import java.io.*;
-import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.Base64;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 
 @Getter
@@ -77,7 +76,7 @@ public class PdfSigner {
         // Load the input PDF as byte array (with or without watermark)
         byte[] inputPdfBytes = applyWaterMark(options, notApplyWatermark, pdfPath);
 
-        String outputPath = prepareDistPath(dist, pdfPath);
+        String outputPath = FileUtil.prepareDistPath(dist, pdfPath, FileUtil.Extension.PDF);
         PdfReader reader = (pdfPassword == null || pdfPassword.isEmpty()) ?
                 new PdfReader(new ByteArrayInputStream(inputPdfBytes)) :
                 new PdfReader(new ByteArrayInputStream(inputPdfBytes), pdfPassword.getBytes());
@@ -127,14 +126,17 @@ public class PdfSigner {
         if (provider == null) throw new SignerException("Provider cannot be null");
 
         TSAClient tsaClient = getTsaClient(options);
-        String signedPdfBase64 = "A".equalsIgnoreCase(options.getPage()) ?
-                signAllPages(reader, options, provider, privateKey, certificateChain, tsaClient) :
-                signer.sign(
-                        reader, provider, privateKey, certificateChain,
-                        Utils.getSignaturePageNumber(options.getPage(), reader.getNumberOfPages()),
-                        options.getCoord(), options.isEnableLtv(), tsaClient, options.isChangesAllowed(),
-                        options.isGreenTick(), options.getReason(), options.getLocation(), options.getCustomText()
-                );
+        int[] pagesToSign = Signer.parsePageSpecification(options.getPage(), reader.getNumberOfPages());
+
+        String signedPdfBase64 = signSelectedPages(
+                reader,
+                options,
+                provider,
+                privateKey,
+                certificateChain,
+                tsaClient,
+                pagesToSign
+        );
 
         FileUtil.writePdfToDisk(outputPath, signedPdfBase64);
 
@@ -143,36 +145,46 @@ public class PdfSigner {
         Response.generateSuccessResponse(signDataMap);
     }
 
-    private String signAllPages(PdfReader originalReader, SignatureOptions options,
-                                String provider, PrivateKey privateKey, Certificate[] certChain, TSAClient tsaClient)
+    private String signSelectedPages(PdfReader originalReader, SignatureOptions options,
+                                     String provider, PrivateKey privateKey, Certificate[] certChain,
+                                     TSAClient tsaClient, int[] pagesToSign)
             throws IOException, UserCancelledException, SignerException {
 
         PdfReader reader = originalReader;
         String lastSignedBase64 = null;
 
-        for (int page = 1; page <= reader.getNumberOfPages(); page++) {
-            boolean allowChanges = (page != reader.getNumberOfPages());
+        // Sort the pages to ensure we process them in order
+        Arrays.sort(pagesToSign);
+
+        for (int i = 0; i < pagesToSign.length; i++) {
+            int page = pagesToSign[i];
+            // Check if page number is valid
+            if (page < 1 || page > reader.getNumberOfPages()) {
+                throw new IllegalArgumentException("Invalid page number: " + page);
+            }
+
+            // Only allow changes if this isn't the last page to be signed
+            boolean allowChanges = (i != pagesToSign.length - 1);
+
             lastSignedBase64 = signer.sign(
                     reader, provider, privateKey, certChain, page, options.getCoord(),
                     options.isEnableLtv(), tsaClient, allowChanges, options.isGreenTick(),
                     options.getReason(), options.getLocation(), options.getCustomText()
             );
-            reader.close();
+
+            // Close the previous reader and create a new one from the signed version
+            if (reader != originalReader) {
+                reader.close();
+            }
             reader = new PdfReader(Base64.getDecoder().decode(lastSignedBase64));
         }
-        reader.close();
+
+        // Clean up
+        if (reader != originalReader) {
+            reader.close();
+        }
         return lastSignedBase64;
     }
-
-    private String prepareDistPath(String distPath, String inputPath) {
-        if (distPath == null || distPath.isEmpty())
-            return FileUtil.generateSignedFilePath(inputPath);
-
-        File destFile = new File(distPath);
-        return (distPath.endsWith(".pdf") || (destFile.isFile() && destFile.getName().endsWith(".pdf"))) ?
-                distPath : new File(destFile, FileUtil.generateTimestampedFilename()).getPath();
-    }
-
 
     private TSAClient getTsaClient(SignatureOptions options) throws TsaException {
 
@@ -198,37 +210,11 @@ public class PdfSigner {
         byte[] inputPdfBytes;
 
         if (!notApplyWatermark) {
-            String pageOption = options.getPage();
             int[] coord = options.getCoord();
             ByteArrayInputStream watermarkedStream;
 
-            switch (pageOption.toUpperCase()) {
-                case "A":
-                    watermarkedStream = PdfWatermarker.applyWatermarkToAllPages(pdfPath,"eDastakhat - Signature Applied", coord);
-                    break;
-
-                case "F":
-                    watermarkedStream = PdfWatermarker.applyWatermarkToPage(pdfPath, "eDastakhat - Signature Applied",coord, 1);
-                    break;
-
-                case "L":
-                    try (InputStream inputStream = Files.newInputStream(Paths.get(pdfPath))) {
-                        PdfReader reader = new PdfReader(inputStream);
-                        int lastPage = reader.getNumberOfPages();
-                        reader.close();
-                        watermarkedStream = PdfWatermarker.applyWatermarkToPage(pdfPath, "eDastakhat - Signature Applied", coord, lastPage);
-                    }
-                    break;
-
-                default:
-                    try {
-                        int pageNumber = Integer.parseInt(pageOption);
-                        watermarkedStream = PdfWatermarker.applyWatermarkToPage(pdfPath, "eDastakhat - Signature Applied", coord, pageNumber);
-                    } catch (NumberFormatException e) {
-                        throw new IllegalArgumentException("Invalid page option: " + pageOption);
-                    }
-                    break;
-            }
+            String watermarkText = "eDastakhat - Signature Applied";
+            watermarkedStream = PdfWaterMarker.applyWatermarkToSelectedPages(pdfPath, watermarkText, coord, options.getPage());
 
             inputPdfBytes = FileUtil.toByteArray(watermarkedStream);
             watermarkedStream.close();

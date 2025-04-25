@@ -102,7 +102,7 @@ The `--config` option expects a `JSON` file containing parameters that define ho
     - `enabled`:  Set to `true` to enable timestamping.
     - `url`: The URL of the Time Stamping Authority server.
     - `username`: Optional username for authenticating with the TSA server.
-    - `password`:  Optional password for authenticating with the TSA server.
+    - `password`: Optional TSA password.
 
 
 

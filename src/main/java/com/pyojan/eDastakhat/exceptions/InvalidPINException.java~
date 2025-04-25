@@ -1,4 +1,0 @@
-package com.pyojan.eDastakhat.exceptions;
-
-public class InvalidPINException {
-}

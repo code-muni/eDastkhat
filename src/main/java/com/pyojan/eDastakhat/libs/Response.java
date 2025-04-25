@@ -11,44 +11,60 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * Represents a response with a status and data payload.
+ *
+ * @param <T> the type of the data payload
+ */
 @Getter @Setter
 public class Response<T> {
     private final static Gson jsonPrinter = new GsonBuilder().setPrettyPrinting().create();
     private String status;
     private T data;
 
+    /**
+     * Constructs a new Response with the given status and data.
+     * @param status the status of the response (SUCCESS/ERROR)
+     * @param data the data payload of the response
+     */
     private Response(String status, T data) {
         this.status = status;
         this.data = data;
     }
 
+    /**
+     * Generates and prints a success response in JSON format.
+     * @param data the data to include in the success response
+     */
     public static void generateSuccessResponse(LinkedHashMap<String, String> data) {
         Response<LinkedHashMap<String, String>> response = new Response<>("SUCCESS", data);
         String json = jsonPrinter.toJson(response);
         System.out.println(json);
     }
 
-
-
     /**
-     * Generates a JSON error response from the given exception.
-     * The response includes the exception message and full stack trace.
-     * The JSON response is then printed to the standard error output.
-     *
-     * @param ex the Throwable exception to be processed into an error response
+     * Generates and prints an error response in JSON format with the exception message and stack trace.
+     * @param e the exception for which the error response is generated
      */
-    public static void generateErrorResponse(Throwable ex) {
-        Map<String, String> errorResponse = new LinkedHashMap<>();
-        errorResponse.put("message", ex.getMessage());
-        errorResponse.put("cause", getFullStackTrace(ex));
+    public static void generateErrorResponse(Exception e) {
+        LinkedHashMap<String, String> errorData = new LinkedHashMap<>();
+        errorData.put("message", e.getMessage());
 
-        Response<Map<String, String>> response = new Response<>("FAILED", errorResponse);
+        StringWriter sw = new StringWriter();
+        PrintWriter pw = new PrintWriter(sw);
+        e.printStackTrace(pw);
+        errorData.put("stackTrace", sw.toString());
+
+        Response<LinkedHashMap<String, String>> response = new Response<>("ERROR", errorData);
         String json = jsonPrinter.toJson(response);
-
-        System.err.println(json);
+        System.out.println(json);
     }
 
-
+    /**
+     * Gets the full stack trace including all nested causes of a Throwable.
+     * @param throwable the throwable to get the stack trace for
+     * @return the complete stack trace as a String
+     */
     private static String getFullStackTrace(Throwable throwable) {
         StringWriter sw = new StringWriter();
         PrintWriter pw = new PrintWriter(sw);

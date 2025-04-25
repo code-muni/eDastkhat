@@ -61,7 +61,10 @@ public class CliManager {
 
             // General required options
             if (!commandLine.hasOption("i")) missingOptions.add("Input PDF file (-i/--input)");
-            if (!commandLine.hasOption("c")) missingOptions.add("Configuration file (-c/--config)");
+
+            // config only required if file type is PDF
+            if (commandLine.getOptionValue("i").endsWith(".pdf") && !commandLine.hasOption("c"))
+                missingOptions.add("Configuration file (-c/--config)");
 
             boolean usingPfx = commandLine.hasOption("pf");
             boolean usingToken = commandLine.hasOption("t");
