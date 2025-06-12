@@ -1,6 +1,7 @@
 package com.pyojan.eDastakhat;
 
 import com.pyojan.eDastakhat.cliManager.CliManager;
+import com.pyojan.eDastakhat.libs.ProxyConfig;
 import com.pyojan.eDastakhat.libs.Response;
 import com.pyojan.eDastakhat.utils.OSDetector;
 import com.pyojan.eDastakhat.utils.Utils;
@@ -9,6 +10,7 @@ import org.apache.commons.cli.*;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.LinkedHashMap;
@@ -25,7 +27,7 @@ public class EDastakhatApplication {
             validateArguments(args);
 
             CommandLine commandLine = initializeCLI(args);
-            SignerController.configureProxyIfPresent(commandLine);
+            EDastakhatApplication.configureProxyIfPresent(commandLine);
 
             // Handle version and help options early
             handleHelpAndVersion(commandLine);
@@ -52,7 +54,7 @@ public class EDastakhatApplication {
         }
     }
 
-    private static CommandLine initializeCLI(String[] args) throws ParseException {
+    private static CommandLine initializeCLI(String[] args) throws ParseException, NoSuchFileException {
         CliManager cliManager = new CliManager(args);
         return cliManager.cliOption();
     }
@@ -88,6 +90,19 @@ public class EDastakhatApplication {
             System.out.println("------------------< Example Signature Configuration File saved successfully on: >------------------");
             System.out.println("\t" + destFilename);
             System.out.println("\n\n\n");
+        }
+    }
+
+    private static void configureProxyIfPresent(CommandLine commandLine) throws IOException {
+        if (commandLine.hasOption("pxh") && commandLine.hasOption("pxp")) {
+            String host = commandLine.getOptionValue("pxh");
+            int port = Integer.parseInt(commandLine.getOptionValue("pxp"));
+            String user = commandLine.getOptionValue("pxu");
+            String password = commandLine.getOptionValue("pxw");
+            boolean isHttps = commandLine.hasOption("pxs");
+
+            ProxyConfig proxyConfig = new ProxyConfig(host, port, user, password, isHttps);
+            proxyConfig.setProxy();
         }
     }
 }

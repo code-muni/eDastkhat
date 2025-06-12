@@ -99,6 +99,18 @@ public class PKCS11KeyStore extends CertificateValidator {
         return getCertificateChain(certSerialHex);
     }
 
+
+    public X509Certificate getCertificate(String serialHex) throws Exception {
+        String alias = findAliasByCertSerial(serialHex);
+        return (X509Certificate) keyStore.getCertificate(alias);
+    }
+
+    public X509Certificate getCertificate() throws Exception {
+        return getCertificate(certSerialHex);
+    }
+
+
+
     // Internal Helpers
 
     private long findSlotByTokenSerial() throws Exception {

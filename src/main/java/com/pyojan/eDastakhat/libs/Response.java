@@ -40,6 +40,7 @@ public class Response<T> {
         Response<LinkedHashMap<String, String>> response = new Response<>("SUCCESS", data);
         String json = jsonPrinter.toJson(response);
         System.out.println(json);
+        System.exit(0); // Exit with a success code
     }
 
     /**
@@ -57,21 +58,7 @@ public class Response<T> {
 
         Response<LinkedHashMap<String, String>> response = new Response<>("ERROR", errorData);
         String json = jsonPrinter.toJson(response);
-        System.out.println(json);
-    }
-
-    /**
-     * Gets the full stack trace including all nested causes of a Throwable.
-     * @param throwable the throwable to get the stack trace for
-     * @return the complete stack trace as a String
-     */
-    private static String getFullStackTrace(Throwable throwable) {
-        StringWriter sw = new StringWriter();
-        PrintWriter pw = new PrintWriter(sw);
-        while (throwable != null) {
-            throwable.printStackTrace(pw);
-            throwable = throwable.getCause();
-        }
-        return sw.toString();
+        System.err.println(json);
+        System.exit(1); // Exit with an error code
     }
 }

@@ -5,6 +5,7 @@ import com.itextpdf.text.pdf.*;
 import com.itextpdf.text.pdf.security.*;
 import com.pyojan.eDastakhat.exceptions.SignerException;
 import com.pyojan.eDastakhat.exceptions.UserCancelledException;
+import net.sf.oval.constraint.NotNull;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -12,6 +13,10 @@ import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.SignatureException;
 import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
 
@@ -34,7 +39,7 @@ public class Signer {
      * @param certChain           the certificate chain to use for the digital signature
      * @param pageNumber          the page number to sign
      * @param coord               the coordinates to place the signature on the page
-     * @param isLtv               whether to include Long Term Validation (LTV) information
+     * @param isLtv               whether to include Long-Term Validation (LTV) information
      * @param tsaClient           the timestamping authority (TSA) client
      * @param isChangesAllowed    whether changes are allowed after signing
      * @param isGreenTrick        whether to include a green tick in the signature
@@ -76,7 +81,9 @@ public class Signer {
                     isChangesAllowed,
                     isGreenTrick,
                     reason,
-                    location
+                    location,
+                    customText,
+                    (X509Certificate) certChain[0]
             );
 
             ExternalDigest digest = new BouncyCastleDigest();
@@ -99,7 +106,7 @@ public class Signer {
                     MakeSignature.CryptoStandard.CADES
             );
 
-        } catch (DocumentException | IOException | GeneralSecurityException e) {
+        } catch (Exception e) {
             if (e instanceof SignatureException) {
                 throw new UserCancelledException("Signing was cancelled by the user", e);
             }
@@ -107,7 +114,7 @@ public class Signer {
         } finally {
             String errorMessage = closeResources(reader, stamper);
             if (errorMessage != null) {
-                generateErrorResponse(new Exception(errorMessage)); // You may want to log or throw instead
+                generateErrorResponse(new SignerException(errorMessage)); // You may want to log or throw instead
             }
         }
 
@@ -126,7 +133,7 @@ public class Signer {
     }
 
     /**
-     * Prepares the list of CRL (Certificate Revocation List) clients for Long Term Validation (LTV).
+     * Prepares the list of CRL (Certificate Revocation List) clients for Long-Term Validation (LTV).
      *
      * @param certChain the certificate chain used for signing the PDF
      * @return a list of CRL clients to be used in the signature process
@@ -143,7 +150,7 @@ public class Signer {
      *
      * @param certChainLength the number of certificates in the chain
      * @param withTimestamp whether a timestamp is included in the signature
-     * @param withLTV whether Long Term Validation (LTV) is included in the signature
+     * @param withLTV whether Long-Term Validation (LTV) is included in the signature
      * @return an estimate of the signature size
      */
     private int calculateEstimatedSignatureSize(int certChainLength, boolean withTimestamp, boolean withLTV) {
@@ -169,7 +176,7 @@ public class Signer {
             if (stamper != null) stamper.close();
             if (reader != null) reader.close();
             return null;
-        } catch (DocumentException | IOException e) {
+        } catch (Exception e) {
             return "ERROR: " + e.getMessage();
         }
     }
@@ -196,21 +203,341 @@ public class Signer {
             boolean isChangesAllowed,
             boolean isGreenTrick,
             String reason,
-            String location
-    ) throws DocumentException, IOException {
+            String location,
+            String customText,
+            X509Certificate cert
+    ) throws DocumentException {
+        appearance.setSignatureCreator("codemuni-eDastakhat");
+
+        // Set coordinates only if they are provided
         if (coord != null && coord.length == 4) {
-            appearance.setVisibleSignature(new Rectangle(coord[0], coord[1], coord[2], coord[3]), pageNumber, fieldName);
+            Rectangle rectangle = new Rectangle(coord[0], coord[1], coord[2], coord[3]);
+            appearance.setVisibleSignature(rectangle, pageNumber, fieldName);
+            this.setSignatureBackgroundColor(appearance, new BaseColor(252, 252, 252));
         }
 
         appearance.setRenderingMode(PdfSignatureAppearance.RenderingMode.NAME_AND_DESCRIPTION);
         appearance.setAcro6Layers(!isGreenTrick);
 
         int certificationStatus = isChangesAllowed ? PdfSignatureAppearance.NOT_CERTIFIED : PdfSignatureAppearance.CERTIFIED_FORM_FILLING;
-        appearance.setCertificationLevel(certificationStatus)
-        ;
-        appearance.setReason(reason);
-        appearance.setLocation(location);
+        appearance.setCertificationLevel(certificationStatus);
+
+        if(reason != null && !reason.isEmpty()) appearance.setReason(reason);
+        if(location != null && !location.isEmpty()) appearance.setLocation(location);
+
+        this.setCustomAppearance(appearance, customText, cert, isChangesAllowed, reason, location);
     }
+
+    /**
+     * Sets a custom appearance for the digital signature, with dynamic font sizing and bottom-to-top text placement.
+     * The font size is calculated to ensure all text fits within the signature rectangle, regardless of box size or text length.
+     *
+     * @param appearance        the PdfSignatureAppearance object to customize
+     * @param customText        additional custom text to include in the signature
+     * @param cert              the X509 certificate used for signing
+     * @param isChangesAllowed  flag indicating if changes are allowed after signing
+     * @param reason            reason for signing
+     * @param location          location of signing
+     * @throws DocumentException if any document-related error occurs
+     */
+    private void setCustomAppearance(
+            PdfSignatureAppearance appearance,
+            String customText,
+            X509Certificate cert,
+            boolean isChangesAllowed,
+            String reason,
+            String location
+    ) throws DocumentException {
+        // Get the layer for text and content display (Layer 2)
+        PdfTemplate layer2 = appearance.getLayer(2);
+
+        // Define the rectangle area with padding
+        float padding = 1f;
+        float paddingTop = 20f; // Increased top padding to avoid overlap with "Signature Valid"
+        Rectangle rect = new Rectangle(
+                padding, padding,
+                appearance.getAppearance().getWidth(),
+                appearance.getAppearance().getHeight() - paddingTop
+        );
+
+        // Format the current timestamp
+        ZonedDateTime now = ZonedDateTime.now();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM d, yyyy h:mm a (xxx)");
+        String formattedDate = now.format(formatter);
+
+        // Extract the common name (CN) from the certificate subject
+        String commonName = "Unknown Signer";
+        if (cert != null && cert.getSubjectDN() != null) {
+            String subject = cert.getSubjectDN().getName();
+            if (subject.contains("CN=")) {
+                commonName = subject.split("CN=")[1].split(",")[0];
+            }
+        }
+
+        // Prepare text lines based on provided values
+        List<String> lines = new ArrayList<>();
+        if (isChangesAllowed) {
+            lines.add("Signed By: " + commonName);
+        } else {
+            // Count non-empty fields
+            int nonEmptyCount = 0;
+            if (isNullOrEmpty(reason)) nonEmptyCount++;
+            if (isNullOrEmpty(location)) nonEmptyCount++;
+            if (isNullOrEmpty(customText)) nonEmptyCount++;
+
+            // Add "Signed By" only if one or fewer fields are non-empty
+            if (nonEmptyCount <= 1) {
+                lines.add("Signed By: " + commonName);
+            }
+        }
+
+        // Add other fields if provided
+        if (isNullOrEmpty(reason)) lines.add("Reason: " + reason);
+        if (isNullOrEmpty(location)) lines.add("Location: " + location);
+        if (isNullOrEmpty(customText)) lines.add(customText);
+        lines.add("Date: " + formattedDate);
+
+        // Calculate optimal font size
+        float fontSize = calculateOptimalFontSize(lines, rect);
+        if (fontSize < 4f) fontSize = 4f; // Minimum readable font size
+
+        // Create font
+        Font font;
+        try {
+            BaseFont baseFont = BaseFont.createFont(BaseFont.HELVETICA, BaseFont.WINANSI, BaseFont.EMBEDDED);
+            font = new Font(baseFont, fontSize);
+        } catch (IOException e) {
+            throw new DocumentException("Failed to load Helvetica font: " + e.getMessage());
+        }
+
+        // Create ColumnText for rendering
+        ColumnText ct = new ColumnText(layer2);
+        ct.setSimpleColumn(rect);
+        ct.setRunDirection(PdfWriter.RUN_DIRECTION_LTR);
+
+        // Create paragraph with adjusted leading
+        Paragraph paragraph = new Paragraph();
+        paragraph.setLeading(fontSize * 1.2f); // 20% line spacing
+        for (String line : lines) {
+            paragraph.add(new Chunk(line, font));
+            paragraph.add(Chunk.NEWLINE);
+        }
+
+        // Adjust for bottom alignment
+        ct.setYLine(rect.getBottom() + fontSize * lines.size() * 1.2f);
+        ct.addElement(paragraph);
+        ct.go();
+    }
+
+    /**
+     * Checks if a string is null or empty after trimming.
+     *
+     * @param s the string to check
+     * @return true if null or empty; false otherwise
+     */
+    private boolean isNullOrEmpty(String s) {
+        return s != null && !s.trim().isEmpty();
+    }
+
+    /**
+     * Calculates the optimal font size to fit all lines within the rectangle.
+     * Iteratively tests font sizes to find the largest that fits both width and height.
+     *
+     * @param lines the list of text lines
+     * @param rect  the rectangle for text placement
+     * @return the optimal font size
+     */
+    private float calculateOptimalFontSize(List<String> lines, Rectangle rect) {
+        if (lines.isEmpty()) return 8f; // Default font size for empty content
+
+        BaseFont baseFont;
+        try {
+            baseFont = BaseFont.createFont(BaseFont.HELVETICA, BaseFont.WINANSI, BaseFont.EMBEDDED);
+        } catch (Exception e) {
+            return 8f; // Fallback font size
+        }
+
+        float boxWidth = rect.getWidth();
+        float boxHeight = rect.getHeight();
+        int lineCount = lines.size();
+        float maxFontSize = 16f; // Upper limit for readability
+        float minFontSize = 4f;  // Lower limit for readability
+        float testFontSize = maxFontSize;
+
+        while (testFontSize >= minFontSize) {
+            boolean fits = true;
+
+            // Check the width for each line
+            for (String line : lines) {
+                float textWidth = baseFont.getWidthPoint(line, testFontSize);
+                if (textWidth > boxWidth) {
+                    fits = false;
+                    break;
+                }
+            }
+
+            // Check total height
+            float totalHeight = lineCount * testFontSize * 1.2f; // Include line spacing
+            if (totalHeight > boxHeight) {
+                fits = false;
+            }
+
+            if (fits) {
+                return testFontSize;
+            }
+
+            testFontSize -= 0.5f; // Decrease font size incrementally
+        }
+
+        return minFontSize; // Return minimum if no fit found
+    }
+
+//
+//    /**
+//     * Sets a custom appearance for the digital signature, including signer info, reason,
+//     * location, and date. The font size is dynamically calculated based on the text content
+//     * and available signature rectangle space to ensure the text fits well.
+//     *
+//     * @param appearance        the PdfSignatureAppearance object to customize
+//     * @param customText        additional custom text to include in the signature
+//     * @param cert              the X509 certificate used for signing
+//     * @param isChangesAllowed flag indicating if changes are allowed after signing
+//     * @param reason            reason for signing
+//     * @param location          location of signing
+//     * @throws DocumentException if any document-related error occurs
+//     */
+//    private void setCustomAppearance(
+//            PdfSignatureAppearance appearance,
+//            String customText,
+//            X509Certificate cert,
+//            boolean isChangesAllowed,
+//            String reason,
+//            String location
+//    ) throws DocumentException {
+//
+//        // Get the layer for text and content display (Layer 2)
+//        PdfTemplate layer2 = appearance.getLayer(2);
+//
+//        // Create ColumnText for laying out paragraph content inside the layer
+//        ColumnText ct = new ColumnText(layer2);
+//
+//        // Define the rectangle area (with padding) inside the signature box
+//        Rectangle rect = new Rectangle(2, 1, layer2.getWidth() - 2, layer2.getHeight() - 17);
+//        ct.setSimpleColumn(rect);
+//        ct.setRunDirection(PdfWriter.RUN_DIRECTION_LTR);
+//
+//        // Format the current timestamp for display
+//        LocalDateTime now = LocalDateTime.now();
+//        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+//        String formatted = now.format(formatter);
+//
+//        // Extract the common name (CN) from the certificate subject
+//        String commonName = cert.getSubjectDN().getName().split("CN=")[1].split(",")[0];
+//
+//        // Prepare text lines to display based on provided values
+//        List<String> lines = new ArrayList<>();
+//
+//        if (isChangesAllowed) lines.add("Signed By " + commonName);
+//        else  {
+//            // Count how many fields are non-empty
+//            int nonEmptyCount = 0;
+//            if (isNullOrEmpty(reason)) nonEmptyCount++;
+//            if (isNullOrEmpty(location)) nonEmptyCount++;
+//            if (isNullOrEmpty(customText)) nonEmptyCount++;
+//
+//            // Add "Signed By" only if exactly one field has a value
+//            if ( nonEmptyCount <= 1) lines.add("Signed By " + commonName);
+//        }
+//        // Add reason, location, and custom text always if provided
+//        if (isNullOrEmpty(reason)) lines.add("Reason: " + reason);
+//        if (isNullOrEmpty(location)) lines.add("Location: " + location);
+//        if (isNullOrEmpty(customText)) lines.add(customText);
+//        lines.add("Date: " + formatted);
+//
+//        // Calculate available box dimensions
+//        int maxLines = lines.size();
+//        float boxHeight = rect.getHeight();
+//        float boxWidth = rect.getWidth();
+//
+//        // Determine the max font size that fits vertically and horizontally
+//        float verticalFontSize = boxHeight / (maxLines * 1.2f); // Adjusting for line spacing
+//        float horizontalFontSize = getMaxFontSizeForWidth(lines, boxWidth);
+//
+//        // Pick the smallest size to ensure it fits both height and width
+//        float finalFontSize = Math.min(verticalFontSize, horizontalFontSize);
+//        Font font = new Font(Font.FontFamily.HELVETICA, finalFontSize);
+//
+//        // Create paragraph with adjusted leading
+//        Paragraph paragraph = new Paragraph();
+//        paragraph.setLeading(finalFontSize * 1.2f); // 20% line spacing
+//        for (String line : lines) {
+//            paragraph.add(new Chunk(line, font));
+//            paragraph.add(Chunk.NEWLINE);
+//        }
+//        // Add paragraph to column and render
+//        ct.addElement(paragraph);
+//        ct.go();
+//    }
+//
+//    /**
+//     * Checks if a given string is null or empty after trimming.
+//     *
+//     * @param s the string to check
+//     * @return true if null or empty; false otherwise
+//     */
+//    private boolean isNullOrEmpty(String s) {
+//        return s != null && !s.trim().isEmpty();
+//    }
+//
+//    /**
+//     * Estimates the maximum font size that can be used without exceeding the box width.
+//     * It calculates the width of each line at 1pt and scales it to the actual box width.
+//     *
+//     * @param lines    list of text lines to measure
+//     * @param boxWidth the width of the available box
+//     * @return the maximum font size that ensures all lines fit within box width
+//     */
+//    private float getMaxFontSizeForWidth(List<String> lines, float boxWidth) {
+//        BaseFont baseFont;
+//        try {
+//            // Load base font (Helvetica)
+//            baseFont = BaseFont.createFont(BaseFont.HELVETICA, BaseFont.WINANSI, BaseFont.EMBEDDED);
+//        } catch (Exception e) {
+//            return 8f; // Fallback font size in case of error
+//        }
+//
+//        float maxFontSize = Float.MAX_VALUE;
+//
+//        // For each line, calculate the max possible font size that fits in the box width
+//        for (String line : lines) {
+//            float fontSize = boxWidth / baseFont.getWidthPoint(line, 1f); // Width at 1 pt
+//            if (fontSize < maxFontSize) {
+//                maxFontSize = fontSize;
+//            }
+//        }
+//
+//        return Math.min(maxFontSize, 12f); // Optional cap on font size
+//    }
+
+    /**
+     * Fills the background color of the signature appearance (Layer 0).
+     *
+     * @param appearance the signature appearance to modify
+     * @param color      the color to use for background fill
+     */
+    private void setSignatureBackgroundColor(@NotNull PdfSignatureAppearance appearance, BaseColor color) {
+        PdfTemplate layer0 = appearance.getLayer(0);
+        PdfContentByte canvas = layer0;
+
+        float width = layer0.getWidth();
+        float height = layer0.getHeight();
+
+        // Draw a filled rectangle covering the entire background
+        canvas.setColorFill(color);
+        canvas.rectangle(0, 0, width, height);
+        canvas.fill();
+    }
+
 
 
     /**

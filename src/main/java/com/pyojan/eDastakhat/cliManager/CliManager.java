@@ -1,9 +1,11 @@
 package com.pyojan.eDastakhat.cliManager;
 
+import com.pyojan.eDastakhat.utils.FileUtil;
 import com.pyojan.eDastakhat.utils.OSDetector;
 import lombok.Getter;
 import org.apache.commons.cli.*;
 
+import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,7 +19,7 @@ public class CliManager {
         this.cliArgs = args;
     }
 
-    public CommandLine cliOption() throws ParseException {
+    public CommandLine cliOption() throws ParseException, NoSuchFileException {
         Options options = new Options();
 
         // Info options
@@ -56,24 +58,61 @@ public class CliManager {
         // Parse arguments
         CommandLine commandLine = parser.parse(options, this.cliArgs);
 
-        if (OSDetector.isWindows() && !(commandLine.hasOption("v") || commandLine.hasOption("h"))) {
-            List<String> missingOptions = new ArrayList<>();
+        if (!(commandLine.hasOption("v") || commandLine.hasOption("h"))) {
 
-            // General required options
-            if (!commandLine.hasOption("i")) missingOptions.add("Input PDF file (-i/--input)");
+            // General-required options
+            if (!commandLine.hasOption("i")) throw new IllegalArgumentException("Input file (-i/--input) is required.");
 
-            // config only required if file type is PDF
-            if (commandLine.getOptionValue("i").endsWith(".pdf") && !commandLine.hasOption("c"))
-                missingOptions.add("Configuration file (-c/--config)");
+            String inputPath = commandLine.getOptionValue("i");
+            if (inputPath == null || inputPath.trim().isEmpty()) throw new IllegalArgumentException("Input file (-i/--input) path is empty or blank.");
+            FileUtil.isFileExists(inputPath, String.format("Input file path [ %s ] does not exist.", inputPath));
 
-            boolean usingPfx = commandLine.hasOption("pf");
-            boolean usingToken = commandLine.hasOption("t");
+            // Config only required if an input file is PDF
+            if (commandLine.getOptionValue("i").endsWith(".pdf")) {
+                if (!commandLine.hasOption("c")) throw new IllegalArgumentException("Configuration file (-c/--config) is required.");
 
-            // PIN required if using token or pfx
-            if ((usingToken || usingPfx) && !commandLine.hasOption("p")) missingOptions.add("PIN (--pin) is required when using --token or --pfx");
+                String configPath = commandLine.getOptionValue("c");
+                if (configPath == null || configPath.trim().isEmpty()) throw new IllegalArgumentException("Configuration file (-c/--config) path is empty or blank.");
+
+                FileUtil.isFileExists(configPath, String.format("Configuration file path [ %s ] does not exist.", configPath));
+            }
+
+
+            boolean isPfx = commandLine.hasOption("pf");
+            boolean isToken = commandLine.hasOption("t");
+
+            // this rules out the case where both --pfx and --token are specified
+            if(isPfx || isToken) {
+                if (isPfx && isToken) throw new IllegalArgumentException("Only one of (-t/--token) or (-pf/--pfx) can be specified");
+
+                if (!commandLine.hasOption("p")) throw new IllegalArgumentException("PIN (-p/--pin) is required when using any one of (-pf/--pfx) or (-t/--token)");
+
+                String tokenPath = commandLine.getOptionValue("t"); // if token is specified and tokenPath is null
+                if (isToken && (tokenPath == null || tokenPath.trim().isEmpty())) throw new IllegalArgumentException("Token file (-t/--token) path is empty or blank.");
+                if (isToken) FileUtil.isFileExists(tokenPath,  String.format("Token file path [ %s ] does not exist.", tokenPath));
+
+                String pfxPath = commandLine.getOptionValue("pf"); // if pfx is specified and pfxPath is null
+                if (isPfx && (pfxPath == null || pfxPath.trim().isEmpty())) throw new IllegalArgumentException("PFX file (-pf/--pfx) path is empty or blank.");
+                if (isPfx) FileUtil.isFileExists(pfxPath, String.format("PFX file path [ %s ] does not exist.", pfxPath));
+
+                boolean isTokenSerial = commandLine.hasOption("ts");
+                if (isToken && isTokenSerial) { // if token is specified and tokenSerial is null
+                    String tokenSerialValue = commandLine.getOptionValue("ts");
+                    if (tokenSerialValue == null || tokenSerialValue.trim().isEmpty()) {
+                        throw new IllegalArgumentException("Token serial number (-ts/--tokenSerial) is empty or blank.");
+                    }
+                }
+            }
 
             // Certificate Serial required if NOT using pfx
-            if (!usingPfx && !commandLine.hasOption("cs")) missingOptions.add("Certificate serial number (-cs/--certificateSerial) is required unless using --pfx");
+            if (!isPfx && !commandLine.hasOption("cs")) throw new IllegalArgumentException("Certificate serial number (-cs/--certificateSerial) is required unless using (-pf/--pfx)");
+            boolean isCertificateSerial = commandLine.hasOption("cs");
+            if(isCertificateSerial) {
+                String certificateSerialValue = commandLine.getOptionValue("cs");
+                if (certificateSerialValue == null || certificateSerialValue.trim().isEmpty()) {
+                    throw new IllegalArgumentException("Certificate serial number (-cs/--certificateSerial) is empty or blank.");
+                }
+            }
 
             // Proxy validation
             boolean hasProxyHost = commandLine.hasOption("pxh");
@@ -81,15 +120,28 @@ public class CliManager {
             boolean hasProxyUser = commandLine.hasOption("pxu");
             boolean hasProxyPassword = commandLine.hasOption("pxw");
 
-            if (hasProxyHost && !hasProxyPort) missingOptions.add("Proxy port (--proxyPort) is required when proxy host is provided");
-            if (hasProxyUser && !hasProxyPassword) missingOptions.add("Proxy password (--proxyPassword) is required when proxy username is provided");
+            if (hasProxyHost && !hasProxyPort) throw new IllegalArgumentException("Proxy port (-pxp/--proxyPort) is required when proxy host is provided");
+            if (hasProxyUser && !hasProxyPassword) throw new IllegalArgumentException("Proxy password (--proxyPassword) is required when proxy username is provided");
 
-            if (!missingOptions.isEmpty()) {
-                throw new MissingOptionException(
-                        "Missing required arguments:\n" +
-                                String.join("\n", missingOptions) +
-                                "\n\nUse -h or --help for usage information."
-                );
+            if (hasProxyPort && !hasProxyHost) throw new IllegalArgumentException("Proxy host (-pxh/--proxyHost) is required when proxy port is provided");
+            if (hasProxyPassword && !hasProxyUser) throw new IllegalArgumentException("Proxy username (-pxu/--proxyUser) is required when proxy password is provided");
+
+            // validate all proxy options if provided should not be empty
+            if (hasProxyHost) {
+                if (commandLine.getOptionValue("pxh") == null || commandLine.getOptionValue("pxh").trim().isEmpty())
+                    throw new IllegalArgumentException("Proxy host (-pxh/--proxyHost) is empty or blank.");
+            }
+            if (hasProxyPort) {
+                if (commandLine.getOptionValue("pxp") == null || commandLine.getOptionValue("pxp").trim().isEmpty())
+                    throw new IllegalArgumentException("Proxy port (-pxp/--proxyPort) is empty or blank.");
+            }
+            if (hasProxyUser) {
+                if (commandLine.getOptionValue("pxu") == null || commandLine.getOptionValue("pxu").trim().isEmpty())
+                    throw new IllegalArgumentException("Proxy username (-pxu/--proxyUser) is empty or blank.");
+            }
+            if (hasProxyPassword) {
+                if (commandLine.getOptionValue("pxw") == null || commandLine.getOptionValue("pxw").trim().isEmpty())
+                    throw new IllegalArgumentException("Proxy password (-pxw/--proxyPassword) is empty or blank.");
             }
         }
 

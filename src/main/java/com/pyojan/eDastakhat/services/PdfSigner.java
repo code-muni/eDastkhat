@@ -37,28 +37,6 @@ public class PdfSigner {
 
     private final Signer signer = new Signer();
 
-    public SignatureOptions prepareAndEnsureSigningOption(@NotNull CommandLine commandLine) throws IOException {
-        String pdfInput = commandLine.getOptionValue("i");
-        String configOption = commandLine.getOptionValue("c");
-
-        // Optional keystore options
-        String pkcs11Path = commandLine.getOptionValue("t"); // PKCS#11
-        String pfxPath = commandLine.getOptionValue("pf");   // PKCS#12
-
-        // Validate that provided file paths actually exist
-        FileUtil.isFileExists(pdfInput);
-        FileUtil.isFileExists(configOption);
-        if (pkcs11Path != null) FileUtil.isFileExists(pkcs11Path);
-        if (pfxPath != null) FileUtil.isFileExists(pfxPath);
-
-        // Load and validate the signing model from config file
-        ModelValidator modelValidator = new ModelValidator(Paths.get(configOption));
-        modelValidator.validatePdfPayloadModel();
-
-        return modelValidator.getModal();
-    }
-
-
     /**
      * Execute the signing process.
      *
@@ -73,7 +51,7 @@ public class PdfSigner {
         String dist = commandLine.getOptionValue("o");
         boolean notApplyWatermark = commandLine.hasOption("nw");
 
-        // Load the input PDF as byte array (with or without watermark)
+        // Load the input PDF as a byte array (with or without a watermark)
         byte[] inputPdfBytes = applyWaterMark(options, notApplyWatermark, pdfPath);
 
         String outputPath = FileUtil.prepareDistPath(dist, pdfPath, FileUtil.Extension.PDF);
@@ -87,7 +65,7 @@ public class PdfSigner {
         X509Certificate[] certificateChain = null;
 
 
-        // if Token argument is provided then use PKCS11 and if PFX is provided then use PFX and if these are not provided then use Windows
+        // if Token argument is provided, then use PKCS11 and if PFX is provided, then use PFX and if these are not provided, then use Windows
         if(commandLine.hasOption("t")) {
             PKCS11KeyStore pkcs11KeyStore = new PKCS11KeyStore();
             if(commandLine.hasOption("ts")) pkcs11KeyStore.setTokenSerial(commandLine.getOptionValue("ts")); // Token Serial is optional
@@ -99,11 +77,9 @@ public class PdfSigner {
             provider = pkcs11KeyStore.getProvider().getName();
             certificateChain = pkcs11KeyStore.getCertificateChain();
         } else if (commandLine.hasOption("pf")) {
-            PKCS12KeyStore pkcs12KeyStore = new PKCS12KeyStore();
-            pkcs12KeyStore.setPkcs12FilePath(commandLine.getOptionValue("pf"));
-            pkcs12KeyStore.setPkcs12Password(commandLine.getOptionValue("p"));
-
-            pkcs12KeyStore.loadKeyStore();
+            String pf = commandLine.getOptionValue("pf");
+            String p = commandLine.getOptionValue("p");
+            PKCS12KeyStore pkcs12KeyStore = new PKCS12KeyStore(pf, p);
 
             privateKey = pkcs12KeyStore.getPrivateKey();
             provider = pkcs12KeyStore.getProvider().getName();
@@ -121,9 +97,9 @@ public class PdfSigner {
             provider = windowKeyStore.getProvider();
         }
 
-        if (privateKey == null) throw new SignerException("PrivateKey cannot be null");
-        if (certificateChain == null) throw new SignerException("CertificateChain cannot be null");
-        if (provider == null) throw new SignerException("Provider cannot be null");
+        if (privateKey == null) throw new SignerException("Unable to find private key, please try again with correct arguments");
+        if (certificateChain == null) throw new SignerException("Unable to find certificate chain, please try again with correct arguments");
+        if (provider == null) throw new SignerException("Unable to find provider, please try again.");
 
         TSAClient tsaClient = getTsaClient(options);
         int[] pagesToSign = Signer.parsePageSpecification(options.getPage(), reader.getNumberOfPages());
@@ -141,13 +117,19 @@ public class PdfSigner {
         FileUtil.writePdfToDisk(outputPath, signedPdfBase64);
 
         LinkedHashMap<String, String> signDataMap = new LinkedHashMap<>();
-        signDataMap.put("signedPdfPath", outputPath);
+        signDataMap.put("signedFilePath", outputPath);
         Response.generateSuccessResponse(signDataMap);
     }
 
-    private String signSelectedPages(PdfReader originalReader, SignatureOptions options,
-                                     String provider, PrivateKey privateKey, Certificate[] certChain,
-                                     TSAClient tsaClient, int[] pagesToSign)
+    private String signSelectedPages(
+            PdfReader originalReader,
+            SignatureOptions options,
+            String provider,
+            PrivateKey privateKey,
+            Certificate[] certChain,
+            TSAClient tsaClient,
+            int[] pagesToSign
+    )
             throws IOException, UserCancelledException, SignerException {
 
         PdfReader reader = originalReader;
@@ -158,13 +140,15 @@ public class PdfSigner {
 
         for (int i = 0; i < pagesToSign.length; i++) {
             int page = pagesToSign[i];
-            // Check if page number is valid
+            // Check if the page number is valid
             if (page < 1 || page > reader.getNumberOfPages()) {
                 throw new IllegalArgumentException("Invalid page number: " + page);
             }
 
-            // Only allow changes if this isn't the last page to be signed
-            boolean allowChanges = (i != pagesToSign.length - 1);
+            // if changesAllowed true and page is set for all pages, then make changesAllowed false only for the last page.
+            boolean allowChanges = (options.getPage().equalsIgnoreCase("A") && !options.isChangesAllowed())
+                    ? (i < pagesToSign.length - 1)
+                    : options.isChangesAllowed();
 
             lastSignedBase64 = signer.sign(
                     reader, provider, privateKey, certChain, page, options.getCoord(),

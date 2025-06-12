@@ -1,15 +1,14 @@
 package com.pyojan.eDastakhat.libs.keyStore;
 
 import com.pyojan.eDastakhat.exceptions.CertificateNotFoundException;
+import com.pyojan.eDastakhat.exceptions.InvalidPINException;
 import com.pyojan.eDastakhat.exceptions.KeyStoreInitializationException;
 import com.pyojan.eDastakhat.exceptions.NotADigitalSignatureException;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import net.sf.oval.constraint.NotNull;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -20,7 +19,7 @@ import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Enumeration;
 
-@AllArgsConstructor @NoArgsConstructor
+@NoArgsConstructor
 public class PKCS12KeyStore extends CertificateValidator {
     @Setter @NotNull private String pkcs12FilePath;
     @Setter @NotNull private String pkcs12Password;
@@ -28,7 +27,14 @@ public class PKCS12KeyStore extends CertificateValidator {
 
     private KeyStore keyStore;
 
-    public void loadKeyStore() {
+    public PKCS12KeyStore(@NonNull String pkcs12FilePath, @NonNull String pkcs12Password) throws InvalidPINException {
+        this.pkcs12FilePath = pkcs12FilePath;
+        this.pkcs12Password = pkcs12Password;
+
+        this.loadKeyStore();
+    }
+
+    public void loadKeyStore() throws InvalidPINException {
         try {
             if (pkcs12FilePath == null || pkcs12Password == null) {
                 throw new IllegalArgumentException("PKCS#12 file path or password not provided.");
@@ -38,13 +44,19 @@ public class PKCS12KeyStore extends CertificateValidator {
             keyStore = KeyStore.getInstance("PKCS12", provider);
             keyStore.load(Files.newInputStream(Paths.get(pkcs12FilePath)), pkcs12Password.toCharArray());
         } catch (IOException e) {
-            throw new KeyStoreInitializationException("Failed to read the PKCS#12 file: " + pkcs12FilePath, e);
+            String fileName = new File(pkcs12FilePath).getName();
+            if (e.getMessage() != null && e.getMessage().contains("PKCS12 key store mac invalid")) {
+                throw new InvalidPINException("PKCS#12 access failed due to incorrect password or invalid file: " + fileName, e);
+            } else {
+                throw new KeyStoreInitializationException("Failed to read the PKCS#12 file: " + fileName, e);
+            }
         } catch (CertificateException | NoSuchAlgorithmException | KeyStoreException e) {
             throw new KeyStoreInitializationException("Failed to initialize PKCS#12 KeyStore", e);
         }
     }
 
     public PrivateKey getPrivateKey() {
+        if(keyStore == null) throw new KeyStoreInitializationException("KeyStore not initialized yet, call loadKeyStore() first");
         try {
             String alias = getFirstAlias();
             return (PrivateKey) keyStore.getKey(alias, pkcs12Password.toCharArray());
@@ -56,6 +68,7 @@ public class PKCS12KeyStore extends CertificateValidator {
     }
 
     public PrivateKey getPrivateKey(String certSerialHex) throws NotADigitalSignatureException {
+        if(keyStore == null) throw new KeyStoreInitializationException("KeyStore not initialized yet, call loadKeyStore() first");
         try {
             String alias = findAliasBySerialNumber(certSerialHex);
             return (PrivateKey) keyStore.getKey(alias, pkcs12Password.toCharArray());
@@ -67,6 +80,7 @@ public class PKCS12KeyStore extends CertificateValidator {
     }
 
     public X509Certificate[] getCertificateChain() {
+        if(keyStore == null) throw new KeyStoreInitializationException("KeyStore not initialized yet, call loadKeyStore() first");
         try {
             String alias = getFirstAlias();
             X509Certificate cert = (X509Certificate) keyStore.getCertificate(alias);
@@ -84,6 +98,7 @@ public class PKCS12KeyStore extends CertificateValidator {
     }
 
     public X509Certificate[] getCertificateChain(String certSerialHex) {
+        if(keyStore == null) throw new KeyStoreInitializationException("KeyStore not initialized yet, call loadKeyStore() first");
         try {
             String alias = findAliasBySerialNumber(certSerialHex);
             X509Certificate cert = (X509Certificate) keyStore.getCertificate(alias);
@@ -132,9 +147,22 @@ public class PKCS12KeyStore extends CertificateValidator {
 
 
 
-    private X509Certificate getCertificate() {
+    public X509Certificate getCertificate() {
+        if(keyStore == null) throw new KeyStoreInitializationException("KeyStore not initialized yet, call loadKeyStore() first");
         try {
             String alias = getFirstAlias();
+            return (X509Certificate) keyStore.getCertificate(alias);
+        } catch (KeyStoreException e) {
+            throw new KeyStoreInitializationException("Failed to retrieve certificate from keystore", e);
+        }
+    }
+
+    public X509Certificate getCertificate(String certSerialHex) {
+
+        if(keyStore == null) throw new KeyStoreInitializationException("KeyStore not initialized yet, call loadKeyStore() first");
+
+        try {
+            String alias = findAliasBySerialNumber(certSerialHex);
             return (X509Certificate) keyStore.getCertificate(alias);
         } catch (KeyStoreException e) {
             throw new KeyStoreInitializationException("Failed to retrieve certificate from keystore", e);

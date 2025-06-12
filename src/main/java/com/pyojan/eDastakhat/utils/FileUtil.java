@@ -54,10 +54,11 @@ public class FileUtil {
     }
 
     // Validate that a file exists; throw an exception if not
-    public static void isFileExists(String filePath) throws NoSuchFileException {
+    public static void isFileExists(String filePath, String message) throws NoSuchFileException {
         Path path = Paths.get(filePath);
         if (!Files.exists(path)) {
-            throw new NoSuchFileException("File does not exist - " + filePath);
+            String msg = message != null ? message : "File does not exist - " + filePath;
+            throw new NoSuchFileException(msg);
         }
     }
 

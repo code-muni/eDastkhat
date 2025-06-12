@@ -87,7 +87,7 @@ public class WindowKeyStore extends CertificateValidator {
                     }
                 }
             }
-            throw new CertificateNotFoundException("No certificate with matching serial found: " + serialHex);
+            throw new CertificateNotFoundException(String.format("Certificate with serial %s not found", serialHex));
         } catch (KeyStoreException e) {
             throw new KeyStoreInitializationException("Error searching for alias", e);
         } catch (CertificateExpiredException | NotADigitalSignatureException e) {

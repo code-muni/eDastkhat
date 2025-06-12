@@ -3,7 +3,12 @@ eDastakhat CLI User Guide
 
 ## Overview
 ---
-The `eDastakhat` CLI (Command-Line Interface) empowers you to digitally sign PDF and enveloped XML documents using digital certificates. This command-line tool is particularly useful for automation, scripting, and batch processing of document signing. For XML documents, eDastakhat supports the standard practice of embedding digital signatures directly within the XML structure. You can utilize certificates stored in files (like PFX/PKCS#12), hardware security modules (via PKCS#11), or, for Windows users, directly from the Windows Certificate Store.
+The `eDastakhat` CLI (Command-Line Interface) empowers you to digitally sign PDF and enveloped XML documents using digital certificates. This command-line tool is particularly useful for automation, scripting, and batch processing of document signing. For XML documents, eDastakhat supports the standard practice of embedding digital signatures directly within the XML structure.
+
+**It supports certificate sources such as:**
+ - PFX/PKCS#12 files 
+ - Hardware tokens (PKCS#11)
+ - Windows Certificate Store (Windows only)
 
 ## Basic Usage
 -------------
@@ -75,8 +80,8 @@ The `--config` option expects a `JSON` file containing parameters that define ho
   "timestamp": {
     "enabled": true,
     "url": "https://tsa.example.com/tsa",
-    "username": "tsa\_user",
-    "password": "tsa\_password"
+    "username": "tsa_user",
+    "password": "tsa_password"
   }
 }
 ```
@@ -104,6 +109,37 @@ The `--config` option expects a `JSON` file containing parameters that define ho
     - `username`: Optional username for authenticating with the TSA server.
     - `password`:  Optional password for authenticating with the TSA server.
 
+
+### Output Structure
+The eDastakhat CLI returns structured JSON output to standard output (STDOUT) and standard error (STDERROR) for easy integration with other tools, scripts, or monitoring systems.
+
+##### STDOUT – Success Output
+If the operation completes successfully, the CLI prints a JSON object to STDOUT:
+```bash
+{
+  "status": "SUCCESS",
+  "data": {
+    "message": "Signed file successfully.",
+    "signedFilePath": "C:\\Users\\Pintu\\Desktop\\PDFs\\PDF test for search By text_signed.pdf"
+  }
+}
+```
+**Description**:<br />
+Indicates the signing process was completed successfully. Includes a success message and the full path to the signed output file.
+
+##### STDERR – Error Output
+If the operation fails, the CLI prints a JSON object to STDERR:
+```bash
+{
+  "status": "ERROR",
+  "data": {
+    "message": "Certificate with serial 5d877912d2s not found",
+    "stackTrace": "com.pyojan.eDastakhat.exceptions.CertificateNotFoundException: Certificate with serial 5d877912d2s not found\r\n\tat com.pyojan.eDastakhat.libs.keyStore.WindowKeyStore.findAliasByCertSerial(WindowKeyStore.java:90)\r\n\tat com.pyojan.eDastakhat.libs.keyStore.WindowKeyStore.getPrivateKey(WindowKeyStore.java:64)\r\n\tat com.pyojan.eDastakhat.services.PdfSigner.executeSign(PdfSigner.java:95)\r\n\tat com.pyojan.eDastakhat.SignerController.handleExecuteSigningRequest(SignerController.java:39)\r\n\tat com.pyojan.eDastakhat.EDastakhatApplication.main(EDastakhatApplication.java:36)\r\n"
+  }
+}
+```
+**Description:** <br />
+Indicates that an error occurred during execution. Includes a human-readable error message and a technical stack trace for debugging purposes.
 
 
 ## Examples
