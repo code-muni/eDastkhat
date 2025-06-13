@@ -7,7 +7,6 @@ import com.itextpdf.text.pdf.PdfSignatureAppearance;
 import com.itextpdf.text.pdf.security.PdfPKCS7;
 import com.pyojan.eDastakhat.models.PdfSignatureVerificationResult;
 import com.pyojan.eDastakhat.models.PdfSignatureVerificationResult.*;
-import jdk.nashorn.internal.objects.annotations.Getter;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 import java.io.IOException;
@@ -35,7 +34,7 @@ public class PdfSignatureVerifier {
      *
      * @param pdfData The byte array containing the PDF document.
      * @return A JSON string representing the signature verification results.
-     * @throws IOException If an error occurs while reading the PDF data.
+     * @throws IOException              If an error occurs while reading the PDF data.
      * @throws GeneralSecurityException If a security-related error occurs during verification.
      */
     public PdfSignatureVerificationResult verifySignatures(byte[] pdfData) throws IOException, GeneralSecurityException {
@@ -50,7 +49,7 @@ public class PdfSignatureVerifier {
      * @param pdfFilePath The file path to the PDF document.
      * @return A JSON string representing the signature verification results.
      * @throws GeneralSecurityException If a security-related error occurs during verification.
-     * @throws IOException If an error occurs while reading the PDF file.
+     * @throws IOException              If an error occurs while reading the PDF file.
      */
     public PdfSignatureVerificationResult verifySignatures(String pdfFilePath) throws GeneralSecurityException, IOException {
         return verifySignatures(Files.readAllBytes(Paths.get(pdfFilePath)));
@@ -62,7 +61,7 @@ public class PdfSignatureVerifier {
      * @param reader The PdfReader instance for the PDF document.
      * @return A PdfSignatureVerificationResult containing the verification details.
      * @throws GeneralSecurityException If a security-related error occurs during verification.
-     * @throws IOException If an error occurs while processing the PDF.
+     * @throws IOException              If an error occurs while processing the PDF.
      * @throws IllegalArgumentException If no signatures are found in the PDF.
      */
     private PdfSignatureVerificationResult verifyDocumentSignatures(PdfReader reader) throws GeneralSecurityException, IOException {
@@ -84,7 +83,7 @@ public class PdfSignatureVerifier {
     /**
      * Verifies all signatures in the PDF and collects their verification details.
      *
-     * @param acroFields The AcroFields instance containing signature information.
+     * @param acroFields     The AcroFields instance containing signature information.
      * @param signatureNames The list of signature names in the PDF.
      * @return A list of SignatureInfo objects detailing each signature's verification status.
      * @throws GeneralSecurityException If a security-related error occurs during verification.
@@ -103,9 +102,9 @@ public class PdfSignatureVerifier {
     /**
      * Verifies a single digital signature in the PDF.
      *
-     * @param acroFields The AcroFields instance containing signature information.
-     * @param sigName The name of the signature to verify.
-     * @param index The index of the signature (0-based).
+     * @param acroFields      The AcroFields instance containing signature information.
+     * @param sigName         The name of the signature to verify.
+     * @param index           The index of the signature (0-based).
      * @param totalSignatures The total number of signatures in the PDF.
      * @return A SignatureInfo object containing the verification details for the signature.
      * @throws GeneralSecurityException If a security-related error occurs during verification.
@@ -179,9 +178,9 @@ public class PdfSignatureVerifier {
     /**
      * Generates warnings for a signature based on its verification status.
      *
-     * @param isValid Whether the signature is valid.
+     * @param isValid         Whether the signature is valid.
      * @param coversEntireDoc Whether the signature covers the entire document.
-     * @param currentIndex The index of the current signature (0-based).
+     * @param currentIndex    The index of the current signature (0-based).
      * @param totalSignatures The total number of signatures in the PDF.
      * @return A list of warning messages for the signature.
      */
@@ -201,9 +200,9 @@ public class PdfSignatureVerifier {
     /**
      * Builds document information for the PDF, including signature and integrity details.
      *
-     * @param reader The PdfReader instance for the PDF document.
+     * @param reader         The PdfReader instance for the PDF document.
      * @param signatureNames The list of signature names in the PDF.
-     * @param signatures The list of verified SignatureInfo objects.
+     * @param signatures     The list of verified SignatureInfo objects.
      * @return A DocumentInfo object containing document-level verification details.
      */
     private DocumentInfo buildDocumentInfo(PdfReader reader, List<String> signatureNames, List<SignatureInfo> signatures) {
@@ -258,9 +257,9 @@ public class PdfSignatureVerifier {
     /**
      * Builds integrity check details for the PDF document.
      *
-     * @param reader The PdfReader instance for the PDF document.
+     * @param reader         The PdfReader instance for the PDF document.
      * @param signatureNames The list of signature names in the PDF.
-     * @param validCount The number of valid signatures.
+     * @param validCount     The number of valid signatures.
      * @return An IntegrityCheck object containing integrity details.
      */
     private IntegrityCheck buildIntegrityCheck(PdfReader reader, List<String> signatureNames, int validCount) {
@@ -280,7 +279,7 @@ public class PdfSignatureVerifier {
      * Builds a summary of the signature verification results.
      *
      * @param totalSignatures The total number of signatures in the PDF.
-     * @param validCount The number of valid signatures.
+     * @param validCount      The number of valid signatures.
      * @return A VerificationSummary object containing summary details.
      */
     private VerificationSummary buildVerificationSummary(int totalSignatures, int validCount) {
@@ -300,23 +299,5 @@ public class PdfSignatureVerifier {
      */
     public String serializeToJson(PdfSignatureVerificationResult result) {
         return new GsonBuilder().setPrettyPrinting().create().toJson(result);
-    }
-
-    /**
-     * Main method for testing the PdfSignatureVerifier with a sample PDF file.
-     *
-     * @param args Command-line arguments (not used).
-     */
-    public static void main(String[] args) {
-        try {
-            String filePath = "C:\\Users\\Pintu\\Desktop\\PDFs\\enableLtv_withRevoke_locked_signed.pdf";
-            PdfSignatureVerifier pdfSignatureVerifier = new PdfSignatureVerifier();
-            PdfSignatureVerificationResult result = pdfSignatureVerifier.verifySignatures(filePath);
-
-            System.out.println(pdfSignatureVerifier.serializeToJson(result));
-        } catch (GeneralSecurityException | IOException e) {
-            System.err.println("Error processing PDF: " + e.getMessage());
-            e.printStackTrace();
-        }
     }
 }

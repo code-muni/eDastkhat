@@ -192,8 +192,8 @@ public class CliManager {
         CommandLine commandLine = parser.parse(options, this.cliArgs);
 
         if (!(commandLine.hasOption("v") || commandLine.hasOption("h"))) {
-            validateVerifyOptions(commandLine);
             validateInputOrVerifyOptions(commandLine);
+            validateVerifyOptions(commandLine);
             validateInputAndConfig(commandLine);
             validateSecurityOptions(commandLine);
             validateCertificateRequirement(commandLine);
@@ -235,6 +235,7 @@ public class CliManager {
 
 
     private void validateVerifyOptions(CommandLine cmd) throws NoSuchFileException {
+        if (!cmd.hasOption("vf")) return;
         if(isBlank(cmd.getOptionValue("vf"))) throw new IllegalArgumentException("Verify file path is empty or blank.");
         FileUtil.isFileExists(cmd.getOptionValue("vf"), String.format("Verify file [ %s ] does not exist.", cmd.getOptionValue("vf")));
     }
