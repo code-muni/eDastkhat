@@ -3,7 +3,7 @@ package com.pyojan.eDastakhat.libs;
 import com.itextpdf.text.pdf.*;
 import com.itextpdf.text.Rectangle;
 import com.itextpdf.text.DocumentException;
-import com.pyojan.eDastakhat.services.Signer;
+import com.pyojan.eDastakhat.services.pdf.Signer;
 
 import java.io.*;
 import java.nio.file.Files;

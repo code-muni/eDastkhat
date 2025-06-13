@@ -1,14 +1,47 @@
-eDastakhat CLI User Guide
-=====================================
+# eDastakhat CLI User Guide
+
+## Table of Contents
+- [Overview](#-overview)
+- [Basic Usage](#-basic-usage)
+- [Command-Line Options](#-command-line-options)
+  - [General Options](#general-options)
+  - [Input/Output Options](#inputoutput-options)
+  - [Configuration & Security Options](#configuration--security-options)
+  - [Certificate Options](#certificate-options)
+  - [Proxy Options](#proxy-options)
+- [Validation Rules](#validation-rules)
+- [JSON Configuration File](#-json-configuration-file)
+- [Signature Verification](#-signature-verification)
+  - [Verification Options](#verification-options)
+  - [Example – Verify a PDF Signature](#example--verify-a-pdf-signature)
+  - [Output Structure for Verification](#output-structure-for-verification)
+    - [STDOUT – Verification Success](#stdout--verification-success)
+    - [STDERR – Verification Failure](#stderr--verification-failure)
+- [Output Structure](#-output-structure)
+  - [STDOUT – Signing Success](#stdout--signing-success)
+  - [STDERR – Signing Failure](#stderr--signing-failure)
+- [Examples](#-examples)
+
 
 ## Overview
 ---
-The `eDastakhat` CLI (Command-Line Interface) empowers you to digitally sign PDF and enveloped XML documents using digital certificates. This command-line tool is particularly useful for automation, scripting, and batch processing of document signing. For XML documents, eDastakhat supports the standard practice of embedding digital signatures directly within the XML structure.
+`eDastakhat` CLI (Command-Line Interface) is a powerful tool for digitally signing and verifying PDF and XML documents using digital certificates. Built for automation, scripting, and enterprise workflows, it supports:
 
-**It supports certificate sources such as:**
- - PFX/PKCS#12 files 
- - Hardware tokens (PKCS#11)
- - Windows Certificate Store (Windows only)
+- **Signing PDFs and Enveloped XML**: Apply digital signatures that comply with legal and compliance requirements.
+- **Signature Verification**: Validate digital signatures in PDF files for authenticity and integrity.
+
+### Key Features:
+- **Multiple certificate sources**:
+  - PFX/PKCS#12 files
+  - Hardware tokens (PKCS#11 compatible)
+  - Windows Certificate Store (Windows only)
+- **Flexible PDF signature configuration** via JSON.
+- **Supports encrypted PDFs**.
+- **LTV (Long-Term Validation) and timestamping**.
+- **Proxy support** for signing/validation behind corporate firewalls.
+
+The CLI is structured to produce clear and structured output on **STDOUT** for successful operations and **STDERR** for errors, both in machine-readable JSON format.
+
 
 ## Basic Usage
 -------------
@@ -44,21 +77,20 @@ Run the CLI using the `java -jar eDastakhat.jar` command followed by the necessa
 | `-p`   | `--pin`     | PIN for PFX or PKCS#11 token (required if `--pfx` or `--token` is used).    | `-p 1234` |
 | `-cs`  | `--certificateSerial` | Serial number of certificate to sign with. Required unless `--pfx` is used. | `-cs 789ABC` |
 
-
 ### Proxy Options
 | Option | Long Option | Description | Example                                             |
 |--------|-------------|-------------|-----------------------------------------------------|
-| `-pxh` | `--proxyHost` |             | Proxy hostname or IP.                               | `--proxyHost proxy.example.com` |
-| `-pxp` | `--proxyPort` |             | Proxy port number.                                  | `--proxyPort 8080` |
-| `-pxu` | `--proxyUser` |             | Proxy username (if authentication is needed).       | `--proxyUser user1` |
-| `-pxw` | `--proxyPass` |             | Proxy password (if authentication is needed).       | `--proxyPass pass123` |
-| `-pxs` | `--proxySecure` |            | Use HTTPS for proxy connection. (if HTTPS required) | `--proxySecure true` |
+| `-pxh` | `--proxyHost` | Proxy hostname or IP.                               | `--proxyHost proxy.example.com` |
+| `-pxp` | `--proxyPort` | Proxy port number.                                  | `--proxyPort 8080` |
+| `-pxu` | `--proxyUser` | Proxy username (if authentication is needed).       | `--proxyUser user1` |
+| `-pxw` | `--proxyPass` | Proxy password (if authentication is needed).       | `--proxyPass pass123` |
+| `-pxs` | `--proxySecure` | Use HTTPS for proxy connection. (if HTTPS required) | `--proxySecure true` |
 
-## Validation Rules (Windows Only)
+## Validation Rules
 If you're on Windows and not using `-v` or `-h`, the following apply:
 - `-i` and `-c` are **required** in case of the PDF signing.
 - If using `--pfx` or `--token`, `--pin` is **required**.
-- If not using `--pfx`, `-cs/--certificateSerial` is **required**. 
+- If not using `--pfx`, `-cs/--certificateSerial` is **required**.
 - `--tokenSerial` is optional. **If multiple tokens are available**, and it is not provided, the first available token will be selected automatically.
 
 ## JSON Configuration File
@@ -89,13 +121,13 @@ The `--config` option expects a `JSON` file containing parameters that define ho
 ### Fields:
 
 - `options.page`: Specifies where to place the signature(s) on the PDF document:
-    - `"F"` = First page
-    - `"L"` = Last page
-    - `"A"` = All pages
-    - `<number>`: The specific page number (e.g., "3").
-    - `<number>,<number>,...`: A comma-separated list of page numbers (e.g., "1,3,5").
-    - `<start>-<end>`: A range of pages (inclusive) (e.g., "1-5"). 
-    - Combined formats are supported (e.g., "F,3,5-7,L").
+  - `"F"` = First page
+  - `"L"` = Last page
+  - `"A"` = All pages
+  - `<number>`: The specific page number (e.g., "3").
+  - `<number>,<number>,...`: A comma-separated list of page numbers (e.g., "1,3,5").
+  - `<start>-<end>`: A range of pages (inclusive) (e.g., "1–5").
+  - Combined formats are supported (e.g., "F,3,5-7,L").
 - `options.reason`: An array `[x, y, width, height]` defining the coordinates and dimensions of the signature appearance on the page, **typically in user space units (points)**.
 - `options.reason`: The reason for signing the document.
 - `options.location`:  The geographical location where the signing occurred.
@@ -104,18 +136,76 @@ The `--config` option expects a `JSON` file containing parameters that define ho
 - `options.changesAllowed`: A boolean value indicating whether changes to the document should be allowed after signing. Setting this to `false` invalidate the signature upon modification.
 - `options.enableLtv`: A boolean value to enable `Long-Term Validation (LTV)`. LTV embeds necessary information (like revocation data) to ensure the signature remains verifiable over time, even if the signing certificate expires or is revoked.
 - `options.timestamp`: Configuration for adding a timestamp from a `Time Stamping Authority (TSA)`, which provides a trusted record of when the document was signed:
-    - `enabled`:  Set to `true` to enable timestamping.
-    - `url`: The URL of the Time Stamping Authority server.
-    - `username`: Optional username for authenticating with the TSA server.
-    - `password`:  Optional password for authenticating with the TSA server.
+  - `enabled`:  Set to `true` to enable timestamping.
+  - `url`: The URL of the Time Stamping Authority server.
+  - `username`: Optional username for authenticating with the TSA server.
+  - `password`:  Optional password for authenticating with the TSA server.
 
 
-### Output Structure
-The eDastakhat CLI returns structured JSON output to standard output (STDOUT) and standard error (STDERROR) for easy integration with other tools, scripts, or monitoring systems.
+## Signature Verification
+---------------------------
 
-##### STDOUT – Success Output
-If the operation completes successfully, the CLI prints a JSON object to STDOUT:
+You can verify digital signatures present in a PDF document using the `--verify` (`-vf`) option. This is particularly useful for audit, compliance, and validation workflows.
+
+### Verification Options
+| Option | Long Option | Description | Example |
+|--------|-------------|-------------|---------|
+| `-vf`  | `--verify`  | Path of the **PDF** file to verify for digital signatures. | `-vf signed.pdf` |
+
+When this option is used, the tool will:
+- Detect and parse all digital signatures embedded in the given PDF.
+- Display verification results, including whether each signature is valid, who signed the document, and the certificate details.
+
+### Example – Verify a PDF Signature
 ```bash
+java -jar eDastakhat.jar -vf signed.pdf
+```
+
+### Output Structure for Verification
+
+#### STDOUT – Verification Success
+```json
+{
+  "status": "SUCCESS",
+  "data": {
+    "signatureCount": 2,
+    "signatures": [
+      {
+        "name": "John Doe",
+        "reason": "Approval",
+        "location": "New York",
+        "signingTime": "2025-06-12T15:25:43Z",
+        "valid": true,
+        "certificate": {
+          "subject": "CN=John Doe, O=Company, C=US",
+          "issuer": "CN=Root CA, O=Trusted Org, C=US",
+          "serialNumber": "5A7D981C",
+          "validFrom": "2023-01-01T00:00:00Z",
+          "validTo": "2026-01-01T00:00:00Z"
+        }
+      }
+    ]
+  }
+}
+```
+For the more information about the `certificate` object, refer to the [Certificate Object](/src/main/java/com/pyojan/eDastakhat/docs/PDF_Signature_Verification_JSON_Spec.md) section.
+
+#### STDERR – Verification Failure
+```json
+{
+  "status": "ERROR",
+  "data": {
+    "message": "No valid digital signatures found in the PDF.",
+    "stackTrace": "com.pyojan.eDastakhat.exceptions.SignatureNotFoundException: No digital signatures found in the PDF.\n\tat ..."
+  }
+}
+```
+
+## Output Structure
+-------------------
+
+### STDOUT – Signing Success
+```json
 {
   "status": "SUCCESS",
   "data": {
@@ -124,23 +214,17 @@ If the operation completes successfully, the CLI prints a JSON object to STDOUT:
   }
 }
 ```
-**Description**:<br />
-Indicates the signing process was completed successfully. Includes a success message and the full path to the signed output file.
 
-##### STDERR – Error Output
-If the operation fails, the CLI prints a JSON object to STDERR:
-```bash
+### STDERR – Signing Failure
+```json
 {
   "status": "ERROR",
   "data": {
     "message": "Certificate with serial 5d877912d2s not found",
-    "stackTrace": "com.pyojan.eDastakhat.exceptions.CertificateNotFoundException: Certificate with serial 5d877912d2s not found\r\n\tat com.pyojan.eDastakhat.libs.keyStore.WindowKeyStore.findAliasByCertSerial(WindowKeyStore.java:90)\r\n\tat com.pyojan.eDastakhat.libs.keyStore.WindowKeyStore.getPrivateKey(WindowKeyStore.java:64)\r\n\tat com.pyojan.eDastakhat.services.PdfSigner.executeSign(PdfSigner.java:95)\r\n\tat com.pyojan.eDastakhat.SignerController.handleExecuteSigningRequest(SignerController.java:39)\r\n\tat com.pyojan.eDastakhat.EDastakhatApplication.main(EDastakhatApplication.java:36)\r\n"
+    "stackTrace": "com.pyojan.eDastakhat.exceptions.CertificateNotFoundException: ..."
   }
 }
 ```
-**Description:** <br />
-Indicates that an error occurred during execution. Includes a human-readable error message and a technical stack trace for debugging purposes.
-
 
 ## Examples
 -----------
@@ -189,3 +273,9 @@ java -jar eDastakhat.jar -cs 89ABCD1234 -i input.xml -o signed.xml
 ```bash
 java -jar eDastakhat.jar -pf cert.pfx -p 1234 -i input.xml -o signed.xml --proxyHost proxy.example.com --proxyPort 8080
 ```
+
+### Verify PDF Signature
+```bash
+java -jar eDastakhat.jar -vf signed_contract.pdf
+```
+This command will check all embedded signatures in `signed_contract.pdf`, and output detailed JSON results to STDOUT.

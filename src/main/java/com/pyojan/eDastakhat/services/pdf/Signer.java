@@ -1,4 +1,4 @@
-package com.pyojan.eDastakhat.services;
+package com.pyojan.eDastakhat.services.pdf;
 
 import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.*;
@@ -9,12 +9,10 @@ import net.sf.oval.constraint.NotNull;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.SignatureException;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
-import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -90,7 +88,7 @@ public class Signer {
             ExternalSignature signature = new PrivateKeySignature(privateKey, DigestAlgorithms.SHA256, provider);
 
             List<CrlClient> crlList = isLtv ? prepareLtvComponents(certChain) : new ArrayList<>();
-            OcspClient ocspClient = isLtv ? new OcspClientBouncyCastle() : null;
+            OcspClient ocspClient = isLtv ? new OcspClientBouncyCastle(null) : null;
 
             int estimatedSize = calculateEstimatedSignatureSize(certChain.length, tsaClient != null, isLtv);
 

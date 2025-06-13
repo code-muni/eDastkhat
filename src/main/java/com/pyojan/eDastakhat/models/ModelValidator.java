@@ -24,7 +24,7 @@ public class ModelValidator {
             throw new NullPointerException("Signature options json file path is required.");
         }
 
-        // ensuring file is exist or not
+        // ensuring a file exists or not
         if (!FileUtil.fileExists(signatureOptionJsonPath)) {
             throw new NoSuchFileException("Signature JSON file does not exist at the specified path: " + signatureOptionJsonPath);
         }

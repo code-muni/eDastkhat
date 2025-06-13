@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.pyojan</groupId>
     <artifactId>eDastakhat</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.1-SNAPSHOT</version>
     <name>eDastakhat</name>
     <description>An all-in-one cross-platform application for seamless PDF signing, supporting Windows, Linux, and Mac.
         Utilize USB crypto tokens or PFX files, while also offering a secure vault to store PFX files for added
@@ -51,13 +51,13 @@
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk15on</artifactId>
-            <version>1.64</version>
+            <version>1.48</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.bouncycastle/bcpkix-jdk15on -->
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcpkix-jdk15on</artifactId>
-            <version>1.64</version>
+            <version>1.48</version>
         </dependency>
         <!-- iText5-->
 

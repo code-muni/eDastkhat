@@ -43,6 +43,22 @@ public class Response<T> {
         System.exit(0); // Exit with a success code
     }
 
+
+    /**
+     * Prints a success response with a status and generic data as a formatted JSON string to STDOUT,
+     * then exits the program with a success code (0).
+     *
+     * @param <T>  the type of the response data
+     * @param data the response data object to be included in the response
+     */
+    public static <T> void generateSuccessResponse(T data) {
+        Response<T> response = new Response<>("SUCCESS", data);
+        String json = jsonPrinter.toJson(response);
+        System.out.println(json);
+        System.exit(0); // Exit with a success code
+    }
+
+
     /**
      * Generates and prints an error response in JSON format with the exception message and stack trace.
      * @param e the exception for which the error response is generated

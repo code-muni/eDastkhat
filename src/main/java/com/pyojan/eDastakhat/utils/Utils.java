@@ -20,6 +20,7 @@ public class Utils {
 
     /**
      * Gets a random Time Stamp Authority (TSA) URL from the predefined list
+     *
      * @return A randomly selected TSA URL string
      */
     public static String getRandomTsaUrl() {
@@ -30,8 +31,9 @@ public class Utils {
 
     /**
      * Validates if the provided TSA URL is reachable and operational
+     *
      * @param tsaUrl The Time Stamp Authority URL to validate
-     * @throws TsaException If the URL is not reachable or invalid
+     * @throws TsaException             If the URL is not reachable or invalid
      * @throws IllegalArgumentException If the URL is null or empty
      */
     public static void validateTsaUrlUpdated(String tsaUrl) throws TsaException {
@@ -65,7 +67,8 @@ public class Utils {
 
     /**
      * Gets the signature page number based on the input string and total pages
-     * @param page The page specification ("F" for first, "L" for last, or a number)
+     *
+     * @param page       The page specification ("F" for first, "L" for last, or a number)
      * @param totalPages The total number of pages in the document
      * @return The page number where signature should be placed
      * @throws IllegalArgumentException If page number is invalid or out of range
@@ -90,61 +93,69 @@ public class Utils {
      * Prints concise help information about the application usage and options
      */
     public static void printConciseHelp() {
-        String helpText =
-                "eDastakhat - PDF Digital Signing Tool\n" +
-                        "Usage: java -jar eDastakhat.jar [options]\n" +
-                        "\n" +
-                        "REQUIRED OPTIONS:\n" +
-                        "\t-i, --input <file>        Input PDF file to sign (required)\n" +
-                        "\t-c, --config <file>       Signature configuration JSON file (required)\n" +
-                        "\n" +
-                        "SECURITY OPTIONS (choose one):\n" +
-                        "\t-t,  --token <file>       PKCS#11 library file (requires --pin, --certificateSerial, and --tokenSerial [if multiple tokens])\n" +
-                        "\t-pf, --pfx <file>         PFX/PKCS#12 file (requires --pin)\n" +
-                        "\t(No option needed for Windows KeyStore. Certificate must be present in Windows-MY, use --certificateSerial to specify one)\n" +
-                        "\n" +
-                        "ADDITIONAL OPTIONS:\n" +
-                        "\t-o,  --output <file>      Output signed file (default: input_signed.pdf)\n" +
-                        "\t-p,  --pin <pin>          PIN for token or PFX\n" +
-                        "\t-ts, --tokenSerial <id>   Serial number of the PKCS#11 token (required only if multiple tokens are available)\n" +
-                        "\t-cs, --certificateSerial <serial>  Serial number of the certificate (required for PKCS#11 and Windows KeyStore)\n" +
-                        "\t-pw, --password <pwd>     PDF password if encrypted\n" +
-                        "\n" +
-                        "NETWORK OPTIONS (for timestamping):\n" +
-                        "\t--pxh <host>        HTTP/HTTPS proxy host\n" +
-                        "\t--pxp <port>        Proxy port\n" +
-                        "\t--pxu <user>        (Optional) Proxy username\n" +
-                        "\t--pxw <pass>        (Optional) Proxy password\n" +
-                        "\t--pxs               (Optional) Use HTTPS for proxy connection\n" +
-                        "\n" +
-                        "INFORMATION:\n" +
-                        "\t-v,  --version            Show application version\n" +
-                        "\t-h,  --help               Show this help message\n" +
-                        "\n" +
-                        "VALIDATION RULES:\n" +
-                        "\t* --input and --config are always required\n" +
-                        "\t* --token requires --pin, --certificateSerial and --tokenSerial (if multiple tokens)\n" +
-                        "\t* --pfx requires --pin (no need for --certificateSerial)\n" +
-                        "\t* Windows KeyStore requires --certificateSerial to identify the certificate from Windows-MY\n" +
-                        "\t* Proxy options are only needed if timestamping and LTV is enabled and system requires a proxy\n" +
-                        "\n" +
-                        "EXAMPLES:\n" +
-                        "\t1. PKCS#11 signing:\n" +
-                        "\t   java -jar eDastakhat.jar -i doc.pdf -c config.json -t libpkcs11.so -p 1234 -ts A1B2C3 -cs 1234567890\n" +
-                        "\n" +
-                        "\t2. PFX signing:\n" +
-                        "\t   java -jar eDastakhat.jar -i doc.pdf -c config.json -pf cert.pfx -p 5678\n" +
-                        "\n" +
-                        "\t3. Encrypted PDF:\n" +
-                        "\t   java -jar eDastakhat.jar -i secure.pdf -pw pdfpass -c config.json -pf cert.pfx -p 5678\n" +
-                        "\n" +
-                        "\t4. Windows KeyStore signing:\n" +
-                        "\t   java -jar eDastakhat.jar -i doc.pdf -c config.json -cs 1234567890\n" +
-                        "\n" +
-                        "\t5. With proxy for timestamping:\n" +
-                        "\t   java -jar eDastakhat.jar -i doc.pdf -c config.json -pf cert.pfx -p 5678 \\\n" +
-                        "\t        -pxh 192.168.0.1 -pxp 8080 -pxu user -pxw pass -pxs\n";
+        String helpText = String.join("\n",
+                "eDastakhat - PDF Digital Signing Tool",
+                "Usage: java -jar eDastakhat.jar [options]",
+                "",
+                "REQUIRED OPTIONS:",
+                "\t-i, --input <file>              Input PDF file to sign (required)",
+                "\t-c, --config <file>             Signature configuration JSON file (required)",
+                "",
+                "SECURITY OPTIONS (choose one):",
+                "\t-t,  --token <file>             PKCS#11 library file (requires --pin, --certificateSerial, and --tokenSerial [if multiple tokens])",
+                "\t-pf, --pfx <file>               PFX/PKCS#12 file (requires --pin)",
+                "\t                                (No option needed for Windows KeyStore. Certificate must be present in Windows-MY, use --certificateSerial to specify one)",
+                "",
+                "ADDITIONAL OPTIONS:",
+                "\t-o,  --output <file>            Output signed file (default: input_signed.pdf)",
+                "\t-p,  --pin <pin>                PIN for token or PFX",
+                "\t-ts, --tokenSerial <id>         Serial number of the PKCS#11 token (required only if multiple tokens are available)",
+                "\t-cs, --certificateSerial <ser>  Serial number of the certificate (required for PKCS#11 and Windows KeyStore)",
+                "\t-pw, --password <pwd>           PDF password if encrypted",
+                "",
+                "VERIFICATION OPTION:",
+                "\t-vf, --verify <file>            Verify all digital signatures in the specified signed PDF",
+                "",
+                "NETWORK OPTIONS (for timestamping):",
+                "\t--pxh <host>                    HTTP/HTTPS proxy host",
+                "\t--pxp <port>                    Proxy port",
+                "\t--pxu <user>                    (Optional) Proxy username",
+                "\t--pxw <pass>                    (Optional) Proxy password",
+                "\t--pxs                           (Optional) Use HTTPS for proxy connection",
+                "",
+                "INFORMATION:",
+                "\t-v,  --version                  Show application version",
+                "\t-h,  --help                     Show this help message",
+                "",
+                "VALIDATION RULES:",
+                "\t* --input and --config are always required",
+                "\t* --token requires --pin, --certificateSerial and --tokenSerial (if multiple tokens)",
+                "\t* --pfx requires --pin (no need for --certificateSerial)",
+                "\t* Windows KeyStore requires --certificateSerial to identify the certificate from Windows-MY",
+                "\t* Proxy options are only needed if timestamping and LTV is enabled and system requires a proxy",
+                "",
+                "EXAMPLES:",
+                "\t1. PKCS#11 signing:",
+                "\t   java -jar eDastakhat.jar -i doc.pdf -c config.json -t libpkcs11.so -p 1234 -ts A1B2C3 -cs 1234567890",
+                "",
+                "\t2. PFX signing:",
+                "\t   java -jar eDastakhat.jar -i doc.pdf -c config.json -pf cert.pfx -p 5678",
+                "",
+                "\t3. Encrypted PDF:",
+                "\t   java -jar eDastakhat.jar -i secure.pdf -pw pdfpass -c config.json -pf cert.pfx -p 5678",
+                "",
+                "\t4. Windows KeyStore signing:",
+                "\t   java -jar eDastakhat.jar -i doc.pdf -c config.json -cs 1234567890",
+                "",
+                "\t5. With proxy for timestamping:",
+                "\t   java -jar eDastakhat.jar -i doc.pdf -c config.json -pf cert.pfx -p 5678 \\",
+                "\t        -pxh 192.168.0.1 -pxp 8080 -pxu user -pxw pass -pxs",
+                "",
+                "\t6. Verify signed PDF:",
+                "\t   java -jar eDastakhat.jar -vf signed_doc.pdf"
+        );
 
         System.out.println(helpText);
     }
+
 }

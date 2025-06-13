@@ -1,4 +1,4 @@
-package com.pyojan.eDastakhat.services;
+package com.pyojan.eDastakhat.services.pdf;
 
 import com.itextpdf.text.DocumentException;
 import com.itextpdf.text.pdf.PdfReader;
@@ -12,7 +12,6 @@ import com.pyojan.eDastakhat.libs.Response;
 import com.pyojan.eDastakhat.libs.keyStore.PKCS11KeyStore;
 import com.pyojan.eDastakhat.libs.keyStore.PKCS12KeyStore;
 import com.pyojan.eDastakhat.libs.keyStore.WindowKeyStore;
-import com.pyojan.eDastakhat.models.ModelValidator;
 import com.pyojan.eDastakhat.models.SignatureOptions;
 import com.pyojan.eDastakhat.utils.FileUtil;
 import com.pyojan.eDastakhat.utils.OSDetector;
@@ -23,7 +22,6 @@ import net.sf.oval.constraint.NotNull;
 import org.apache.commons.cli.CommandLine;
 
 import java.io.*;
-import java.nio.file.Paths;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;

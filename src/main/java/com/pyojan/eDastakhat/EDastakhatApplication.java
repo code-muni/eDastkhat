@@ -20,6 +20,9 @@ import static com.pyojan.eDastakhat.libs.Response.generateSuccessResponse;
 
 public class EDastakhatApplication {
 
+
+    private static final String VERSION = "1.0.1";
+
     public static void main(String[] args) {
         try {
             // Ensure the OS is supported
@@ -33,7 +36,7 @@ public class EDastakhatApplication {
             handleHelpAndVersion(commandLine);
 
             // Handle sign request
-            SignerController.handleExecuteSigningRequest(commandLine);
+            ExecutorController.handleExecuteRequest(commandLine);
 
         } catch (Exception e) {
             Response.generateErrorResponse(e);
@@ -43,11 +46,11 @@ public class EDastakhatApplication {
 
     private static void ensureSupportedOS() {
         if (!OSDetector.isWindows() && !OSDetector.isLinux() && !OSDetector.isMac()) {
-            throw new RuntimeException("OS is not supported: " + OSDetector.getOSName());
+            throw new RuntimeException(String.format("OS is not supported: %s, please use Windows, Linux or macOS", OSDetector.getOSName()));
         }
     }
 
-    private static void validateArguments(String[] args) throws IOException {
+    private static void validateArguments(String[] args) {
         if (args.length == 0) {
             generateErrorResponse(new IOException("No arguments provided. Use -h or --help to see usage instructions."));
             System.exit(0);
@@ -62,7 +65,7 @@ public class EDastakhatApplication {
     private static void handleHelpAndVersion(CommandLine commandLine) throws IOException {
         if (commandLine.hasOption("v")) {
             LinkedHashMap<String, String> versionInfo = new LinkedHashMap<>();
-            versionInfo.put("version", "1.0.0");
+            versionInfo.put("version", EDastakhatApplication.VERSION);
             generateSuccessResponse(versionInfo);
             System.exit(0);
         }
