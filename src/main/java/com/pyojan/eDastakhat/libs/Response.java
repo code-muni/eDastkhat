@@ -74,7 +74,7 @@ public class Response<T> {
 
         Response<LinkedHashMap<String, String>> response = new Response<>("ERROR", errorData);
         String json = jsonPrinter.toJson(response);
-        System.err.println(json);
-        System.exit(1); // Exit with an error code
+        System.out.println(json);
+        System.exit(0); // Exit with an error code
     }
 }
