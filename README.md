@@ -40,8 +40,41 @@
 - **LTV (Long-Term Validation) and timestamping**.
 - **Proxy support** for signing/validation behind corporate firewalls.
 
-The CLI is structured to produce clear and structured output on **STDOUT** for successful operations and **STDERR** for errors, both in machine-readable JSON format.
+The CLI is structured to produce clear and structured output on **STDOUT** for successful operations and **STDERR** for errors, 
 
+---
+
+## Prerequisites
+Before using **eDastakhat CLI**, ensure your system meets the following requirements:
+
+### 1. **Java Runtime Environment (JRE)**
+- **Supported Versions**: Only **Java LTS (Long-Term Support) versions 8 or 11** are officially supported.
+- **How to Check**:
+  ```bash
+  java -version
+  ```
+
+### 2. **Operating System**
+- **Windows**: Windows 7 or later (64-bit).
+- **Linux**: Most modern distributions (tested on Ubuntu 20.04+, RHEL/CentOS 7+).
+- **macOS**: 10.15 (Catalina) or later.
+
+### 4. **Additional Dependencies**
+- **For Hardware Tokens**:
+  - PKCS#11 driver installed (e.g., [eToken](https://www.globalsign.com/en-sg/support/etoken-drivers), [SafeNet](https://supportportal.thalesgroup.com/)).
+- **For Timestamping (LTV)**:
+  - Internet access to TSA servers (if configured in JSON).
+- **Proxy Support**: Configure firewall/proxy to allow connections to:
+  - CRL/OCSP servers (for certificate validation).
+  - TSA servers (if timestamping is enabled).
+
+### Verification Steps
+1. Confirm Java is installed:
+   ```bash
+   java -version  # Should show "1.8" or "11.x.x"
+   ```
+
+---
 
 ## Basic Usage
 -------------
